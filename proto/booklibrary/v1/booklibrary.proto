@@ -1,0 +1,120 @@
+// STEPS 3-4 — The internal gRPC service (compile with `make gen-proto`).
+//
+// This is the running EXAMPLE (a key-value store); replace it with your own
+// service. Rules shown here:
+//   * every RPC has its OWN request and response message
+//   * streams carry a variable number of items (keys, entries)
+//   * errors are gRPC status codes, not fields in the messages
+//   * RPCs need not map 1:1 to REST operations (8 REST operations, 3 RPCs)
+//   * our service maps 8 REST operations to 8 RPCs
+syntax = "proto3";
+package booklibrary.v1;
+option go_package = "github.com/your-team/kvs/gen/booklibrary/v1;booklibraryv1";
+
+service booklibrary {
+  // One key, a list, a prefix or a range; results stream back sorted.
+  // NOT_FOUND only when a single key was asked for and it is missing.
+  rpc GetAllBooks(GetAllBooksRequest) returns (stream GetAllBooksResponse);
+  rpc GetBook(GetBookRequest) returns ( GetBookResponse);
+  rpc AddBook(AddBookRequest) returns ( AddBookResponse);
+  rpc AddCopies(AddCopiesRequest) returns ( AddCopiesResponse);
+  rpc RemoveBook(RemoveBookRequest) returns ( RemoveBookResponse);
+  rpc BuyBook(BuyBookRequest) returns ( BuyBookResponse);
+  rpc BorrowBook(BorrowBookRequest) returns ( BorrowBookResponse);
+  rpc ReturnBook(ReturnBookRequest) returns ( ReturnBookResponse);
+  
+  // Not in Part I:
+  // rpc Watch(WatchRequest) returns (stream WatchResponse);
+}
+
+enum Consistency {
+  CONSISTENCY_UNSPECIFIED = 0;  // treated as SEQUENTIAL
+  CONSISTENCY_SEQUENTIAL = 1;
+  CONSISTENCY_LINEARIZABLE = 2;
+}
+
+message Book {
+  string booktitle = 1;
+  string author = 2;
+  int64 year = 3;
+  int64 totalCopies = 4;
+  int64 availableCopies = 5;
+}
+
+// ---- Read --------------------------------------------------------------
+message GetAllBooksRequest {
+  
+  optional string author = 1;            
+  optional int64 year = 2;
+  int32 limit = 3;              // 0 = no limit
+  Consistency consistency = 4;
+}
+message GetAllBooksResponse {
+  Book book = 1;
+}
+
+message GetBookRequest {
+  
+  string booktitle = 1;            
+  Consistency consistency = 2;
+}
+message GetBookResponse {
+  Book book = 1;
+}
+
+message AddBookRequest {
+  string booktitle = 1;
+  string author = 2;
+  int64 year = 3;
+  int64 copies = 4;
+}
+
+message AddBookResponse{
+  Book book = 1;
+}
+
+message AddCopiesRequest {
+  string booktitle = 1;
+  int64 copies = 2;
+}
+
+message AddCopiesResponse {
+  Book book = 1;
+}
+
+message RemoveBookRequest {
+  string booktitle = 1;
+}
+
+message RemoveBookResponse {}
+
+message BuyBookRequest {
+  string booktitle = 1;
+}
+
+message BuyBookResponse {
+  Book book = 1;
+}
+message BorrowBookRequest {
+  string booktitle = 1;
+  string userid = 2;
+}
+
+message BorrowBookResponse {
+  Book book = 1;
+}
+
+message ReturnBookRequest {
+  string booktitle = 1;
+  string userid = 2;
+}
+
+message ReturnBookResponse {
+  Book book = 1;
+}
+
+// ---- Watch (not in Part I) ---------------------------------------------
+// message WatchRequest  { string prefix = 1; optional int64 since = 2; }
+// message WatchResponse {
+//   int64 revision = 1; Entry entry = 2; bool deleted = 3;
+// }

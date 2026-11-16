@@ -1,0 +1,315 @@
+openapi: 3.0.3
+# ---------------------------------------------------------------------------
+# STEP 1 — Service semantics as an OpenAPI document.
+#
+# Edit this file in the Swagger Editor (/editor once the server runs, or
+# https://editor.swagger.io) and fix every warning. Then `make gen-rest`.
+#
+# This file describes the running EXAMPLE, a key-value store. Students do
+# not implement it: replace it with your own service, keeping the structure:
+#   * every operation has an operationId  -> becomes a Go method name
+#   * reusable pieces live in components (schemas, parameters, responses)
+#   * reads take a `consistency` query parameter
+#   * errors are application/problem+json (RFC 9457)
+# ---------------------------------------------------------------------------
+info:
+  title: Book Library Mangment System
+  version: 2.0.0
+  description: |
+    Client-facing RESTful API of the Book Library Mangment System.
+    
+    the service allows the client to search for books, borrow or buy them and return them back.
+
+    * Reads accept `?consistency=sequential|linearizable` (default: sequential).
+      All writes are linearizable.
+    
+servers:
+  - url: /
+    description: The server that serves this page (use with /docs)
+  - url: http://localhost:8080
+    description: Node n1 (from Swagger Editor/UI containers; needs -cors-origin)
+tags:
+  - name: AllBooks
+    description: Book library operations
+  - name: book
+    description: operations on a single book 
+
+paths:
+  /v1/AllBooks:
+    get:
+      tags: [AllBooks]
+      operationId: getAllBooks
+      summary: getAllBooks
+      description: |
+        lists all books in the library, the user can filter the search using author or year
+      parameters:
+        - name: author
+          in: query
+          required: false
+          schema: { type: string }
+        - name: year
+          in: query
+          required: false
+          schema: { type: integer }
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of books 
+          schema: { type: integer, format: int32, minimum: 0 }
+        - $ref: '#/components/parameters/Consistency'
+      responses:
+        '200':
+          description: Books listed 
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookList' }
+        '400': { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [AllBooks]
+      operationId: AddBook
+      summary: AddBook.
+      description: Add a new book to the library,each book has its own title which is different from other books.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddBookBody' }
+      responses:
+        '201':
+          description: the new book
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Book' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+    
+  /v1/AllBooks/{Booktitle}:
+    parameters:
+      - $ref: '#/components/parameters/Title'
+    get:
+      tags: [book]
+      operationId: getBook
+      summary: getBook 
+      description: get a specific book.
+      parameters:
+        - $ref: '#/components/parameters/Consistency'
+      responses:
+        '200':
+          description: The requested book
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Book' }
+        '404': { $ref: '#/components/responses/Problem' }
+   
+    patch:
+      tags: [book]
+      operationId: AddCopies
+      summary: AddCopies
+      description: |
+        Increase the total and available copies of an existing book by a positive number.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddCopiesBody' }
+      responses:
+        '200':
+          description: The book after adding copies
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Book' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [book]
+      operationId: removeBook
+      summary: removeBook 
+      description: |
+        Remove a book and all its copies from the library. if there are borrowed copies of the book it can't be removed.
+      responses:
+        '204':
+          description:  the book removed from the library. 
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+
+  /v1/AllBooks/{Booktitle}/borrow:
+     parameters:
+        - $ref: '#/components/parameters/Title'
+     post:
+      tags: [book]
+      operationId: BorrowBook
+      summary: BorrowBook
+      description: Borrow a specific book
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BorrowBody' }
+      responses:
+        '200':
+          description: the book state after the borrow
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Book' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/AllBooks/{Booktitle}/return:
+     parameters:
+        - $ref: '#/components/parameters/Title'
+     post:
+      tags: [book]
+      operationId: ReturnBook
+      summary: ReturnBook
+      description: |
+          Return one specific book copy that was borrowed.
+          The user must have borrowed the book before returning it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReturnBody' }
+      responses:
+        '200':
+          description: the book state after the return
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Book' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/AllBooks/{Booktitle}/buy:
+     parameters:
+        - $ref: '#/components/parameters/Title'
+     post:
+      tags: [book]
+      operationId: BuyBook
+      summary: BuyBook
+      description: |
+          Buy one available copy of a specific book.
+          Decrease the number of available copies and the total copies by one.
+      responses:
+        '200':
+          description: the book state after the buying
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Book' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+components:
+  parameters:
+    Title:
+      name: Booktitle
+      in: path
+      required: true
+      schema: { type: string }
+    Consistency:
+      name: consistency
+      in: query
+      required: false
+      schema: { $ref: '#/components/schemas/Consistency' }
+    
+  responses:
+    Problem:
+      description: Error (RFC 9457 problem details)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Consistency:
+      type: string
+      enum: [sequential, linearizable]
+      default: sequential
+
+    Book:
+      type: object
+      required: [Booktitle, author,year, totalCopies, availableCopies]
+      properties:
+        Booktitle: 
+          type: string
+          minLength: 1
+          description: name of the book ,only one book with this name.
+        author: 
+          type: string
+          minLength: 1
+          description: name of the author of the book.
+        year:
+          type: integer
+          format: int64
+          description: the year the book was published
+        totalCopies:
+          type: integer
+          format: int64
+          minimum: 0
+          description: the number of the total copies of the book.
+        availableCopies:
+          type: integer
+          format: int64
+          minimum: 0
+          description: the number of the available copies of the book.
+          
+
+    BookList:
+      type: object
+      required: [books]
+      properties:
+        books:
+          type: array
+          items: { $ref: '#/components/schemas/Book' }
+
+    AddBookBody:
+      type: object
+      required: [Booktitle, author,year, Copies]
+      properties:
+        Booktitle: 
+          type: string
+          minLength: 1
+          description: name of the book ,only one book with this name.
+        author: 
+          type: string
+          minLength: 1
+          description: name of the author of the book.
+        year:
+          type: integer
+          format: int64
+          description: the year the book was published
+        Copies:
+          type: integer
+          format: int64
+          minimum: 1
+          description: the number of the total copies of the book.
+
+    AddCopiesBody:
+      type: object
+      required: [copies]
+      description: add copies of a bool that already exist.
+      properties:
+        copies:
+          type: integer
+          format: int64
+          minimum: 1
+
+    BorrowBody:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+          minLength: 1
+    ReturnBody:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+          minLength: 1
+
+    Problem:
+      type: object
+      required: [title, status]
+      properties:
+        type: { type: string, default: about:blank }
+        title: { type: string, description: Short summary, e.g. "Not Found" }
+        status: { type: integer, description: The HTTP status code }
+        detail: { type: string, description: What went wrong in this case }
